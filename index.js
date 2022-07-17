@@ -33,7 +33,7 @@ io.on("connection", (socket) => {
   let users = []
 
 const addUser = (userId, socketId) => {
-  !users.some((user) => user.userId === socketId) &&
+  !users.some((user) => user.userId === userId) &&
     users.push({userId, socketId})
 }
 
@@ -50,21 +50,43 @@ io.on('connection', (socket) => {
 //   console.log('a user connected')
   // adding user to socket server
   socket.on('addUser', (userId) => {
-    addUser(userId, socket.id)
-    io.emit('getSocketUsers', users)
+    if(users.find(user => user.userId === userId)) {
+
+    }
+    else {
+        addUser(userId, socket.id)
+        io.emit('getSocketUsers', users)
+        // console.log(users)
+    }
   })
 
 //   send and get message
   socket.on("sendMessage", ({ messageId, sendId, receiverId, message }) => {
     const user = getUser(receiverId);
     if (user) {
-      io.to(user.socketId).emit("getMessage", {
+      io.emit("getMessage", {
         sendId,
+        receiverId,
         messageId,
         message,
       });
+    //   console.log(user.socketId)
     }
   });
+
+  // start new conversation
+//   socket.on("startConversation", ({ messageId, sendId, receiverId, message }) => {
+//     const user = getUser(receiverId);
+//     if (user) {
+//       io.emit("getStartConversation", {
+//         sendId,
+//         receiverId,
+//         messageId,
+//         message,
+//       });
+//     //   console.log(user.socketId)
+//     }
+//   });
 
   // Start New Conversation
 //   socket.on("newConversation", (userID) => {
@@ -121,9 +143,44 @@ client.connect(err => {
             else {
                 usersCollection.insertOne(data)
                 .then(result => {
-                    const data = result.ops[0]
-                    delete data.password
-                    res.send(data)
+                    const returnData = result.ops[0]
+                    delete returnData.password
+
+                    const uid = String((Math.random() * Math.random() * 10000000000000000));
+                    const messageData = {message: [{from: 'admin@gmail.com', to: returnData.email, message: 'WELCOME user! This is a chat app made by Maruf. You can chat with others by their email or you can chat with me for passing some time 🖤🖤!', image: false, deleted: false, fromID: '62c8e6bf5a6fe80023616b3e', toID: returnData._id, UID: uid, timestamps: new Date().getTime()}], fromImage: 'https://ik.imagekit.io/znex04bydzr/1093511_Zyw8FwvVk.png', toImage: returnData.image, fromName: 'Admin', toName: returnData.name, fromEmail: 'admin@gmail.com', toEmail: returnData.email, fromID: '62c8e6bf5a6fe80023616b3e', toID: returnData._id}
+
+                    usersCollection.find({})
+                    .toArray((err, docs) => {
+                        messagesCollection.insertOne(messageData)
+                        .then(addedData => {
+                            const messageID = addedData.ops[0]._id
+
+                            usersCollection.updateOne(
+                                { _id: ObjectId(returnData._id) },
+                                {
+                                $set: {messages: [messageID]},
+                                }
+                            )
+                            .then(result => {
+                                const adminMessages = docs.find(user => user._id.toString() === '62c8e6bf5a6fe80023616b3e')
+                                const newMessageArray = [...adminMessages.messages, messageID]
+
+                                usersCollection.updateOne(
+                                    { _id: ObjectId('62c8e6bf5a6fe80023616b3e') },
+                                    {
+                                    $set: {messages: newMessageArray},
+                                    }
+                                )
+                                .then(result => {
+                                    returnData.messages = [messageID]
+                                    res.send(returnData)
+                                })
+                                .catch(err => res.send({error: err}))
+                            })
+                            .catch(err => res.send({error: err}))
+                        })
+                        .catch(err => res.send({error: err}))
+                    })
                 })
                 .catch(err => res.send(err))
             }
@@ -151,6 +208,22 @@ client.connect(err => {
         })
     })
 
+    app.post('/login-user-with-email', (req, res) => {
+        const data = req.body
+        usersCollection.find({})
+        .toArray((err, documents) => {
+            const loginUser = documents.find(user => user.email === data.email)
+            if(loginUser !== undefined) {
+                const newData = loginUser
+                delete newData.password
+                res.send(newData)
+            }
+            else {
+                res.send({error: 'This email is not registered!'})
+            }
+        })
+    })
+
     // getting all the conversations of a user
     app.post('/get-conversations', (req, res) => {
         const email= req.body;
@@ -171,6 +244,7 @@ client.connect(err => {
                         selectedConversations.push(selectedConversation)
                       }
                     
+                    selectedConversations.sort((a, b) => a.message[a.message.length - 1].timestamps - b.message[b.message.length - 1].timestamps).reverse()
                     res.send(selectedConversations)
                 })
             }
@@ -207,6 +281,7 @@ client.connect(err => {
     app.post('/delete-message', (req, res) => {
         const UID = req.body.UID;
         const messageID = req.body.messageID;
+        console.log(UID, messageID)
         
         messagesCollection.find({_id: ObjectId(messageID)})
         .toArray((err, docs) => {
@@ -228,6 +303,7 @@ client.connect(err => {
     // adding first message of any new conversations  
     app.post('/new-message', (req, res) => {
         const data = req.body.data;
+        const adminMessage = req.body.adminMessage;
         const fromImage = req.body.image;
         const fromName = req.body.name;
         const fromEmail = req.body.email;
@@ -237,6 +313,7 @@ client.connect(err => {
         .toArray((err, documents) => {
             // checking to user found
             const isUser = documents.find(user => user.email === data.to)
+            console.log(isUser)
             // if user found
             if(isUser) {
                 data.toID = String(isUser._id)
