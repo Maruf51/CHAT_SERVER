@@ -226,31 +226,20 @@ client.connect(err => {
 
     // getting all the conversations of a user
     app.post('/get-conversations', (req, res) => {
-        const email= req.body;
-        usersCollection.find({})
+        const messageIds = req.body;
+        messagesCollection.find({})
         .toArray((err, docs) => {
-            // getting a user data
-            const userFound = docs.find(user => user.email === email.email)
-            // checking if there is already conversations exists or not
-            if(userFound.messages) {
-                messagesCollection.find({})
-                .toArray((err, docs) => {
-                    const allConversations = docs;
-                    const selectedConversations = []
+            const allConversations = docs;
+            const selectedConversations = []
 
-                    for(let i = 0; i < userFound.messages.length; i++) {
-                        const conversationID = userFound.messages[i]
-                        const selectedConversation = allConversations.find(conversation => conversation._id.toString() === conversationID.toString())
-                        selectedConversations.push(selectedConversation)
-                      }
-                    
-                    selectedConversations.sort((a, b) => a.message[a.message.length - 1].timestamps - b.message[b.message.length - 1].timestamps).reverse()
-                    res.send(selectedConversations)
-                })
-            }
-            else {
-                console.log('There is no conversations on this email.')
-            }
+            for(let i = 0; i < messageIds.length; i++) {
+                const conversationID = messageIds[i]
+                const selectedConversation = allConversations.find(conversation => conversation._id.toString() === conversationID.toString())
+                selectedConversations.push(selectedConversation)
+                }
+            
+            selectedConversations.sort((a, b) => a.message[a.message.length - 1].timestamps - b.message[b.message.length - 1].timestamps).reverse()
+            res.send(selectedConversations)
         })
     })
 
