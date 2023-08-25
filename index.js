@@ -114,9 +114,9 @@ io.on('connection', (socket) => {
 
 var ImageKit = require("imagekit");
 const imagekit = new ImageKit({
-    publicKey : "public_oMtSciIGjj/z2sxDOGfO2y4i6zw=",    
-    privateKey : "private_ISvM6qaaDBDRWI/ghLkbGWuC22Q=",
-    urlEndpoint : "https://ik.imagekit.io/znex04bydzr"
+    publicKey : "public_5rRmOCN1vK/MI28l98iNzt8jNhQ=",    
+    privateKey : "private_zhGSwTmOLTaSGUBkrvsduQ1ln1s=",
+    urlEndpoint : "https://ik.imagekit.io/ebnirpt9i8agxu"
 });
 app.get('/auth', function (req, res) {
     var result = imagekit.getAuthenticationParameters();
